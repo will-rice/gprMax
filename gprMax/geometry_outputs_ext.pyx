@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2018: The University of Edinburgh
+# Copyright (C) 2015-2019: The University of Edinburgh
 #                 Authors: Craig Warren and Antonis Giannopoulos
 #
 # This file is part of gprMax.
@@ -18,8 +18,6 @@
 
 cimport numpy as np
 
-from gprMax.constants cimport floattype_t
-
 
 cpdef void define_fine_geometry(
                     int nx,
@@ -35,7 +33,7 @@ cpdef void define_fine_geometry(
                     float dy,
                     float dz,
                     np.uint32_t[:, :, :, :] ID,
-                    floattype_t[:, :] points,
+                    np.float32_t[:, :] points,
                     np.uint32_t[:, :] x_lines,
                     np.uint32_t[:] x_materials,
                     np.uint32_t[:, :] y_lines,

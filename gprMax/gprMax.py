@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2018: The University of Edinburgh
+# Copyright (C) 2015-2019: The University of Edinburgh
 #                 Authors: Craig Warren and Antonis Giannopoulos
 #
 # This file is part of gprMax.
@@ -391,10 +391,12 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         myargv = []
         for key, value in vars(args).items():
             if value:
+                # Input file name always comes first
                 if 'inputfile' in key:
                     myargv.append(value)
                 elif 'gpu' in key:
                     myargv.append('-' + key)
+                    # If specific GPU device ID is given then add it
                     if not isinstance(value, list):
                         myargv.append(str(value.deviceID))
                 elif 'mpicomm' in key:
@@ -402,10 +404,10 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
                 elif '_' in key:
                     key = key.replace('_', '-')
                     myargv.append('--' + key)
-                    myargv.append(str(value))
                 else:
                     myargv.append('-' + key)
-                    myargv.append(str(value))
+                    if value is not True:
+                        myargv.append(str(value))
 
         # Create a list of work
         worklist = []
@@ -437,13 +439,13 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
     # Worker process #
     ##################
     elif workerflag in sys.argv:
-
+        print('Worker')
         # Connect to parent to get communicator
         try:
             comm = MPI.Comm.Get_parent()
             rank = comm.Get_rank()
         except ValueError:
-            raise ValueError('MPI worker (rank {}) could not connect to parent')
+            raise ValueError('MPI worker could not connect to parent')
 
         # Ask for work until stop sentinel
         for work in iter(lambda: comm.sendrecv(0, dest=0), StopIteration):
@@ -479,6 +481,8 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
 def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
     """
     Alternate MPI implementation that avoids using the spawn mechanism.
+    This implementation is designed to be used as
+    e.g. 'mpirun -n 5 python -m gprMax user_models/mymodel.in -n 10 -mpialt'
 
     Run mixed mode MPI/OpenMP simulation - MPI task farm for models with
     each model parallelised using either OpenMP (CPU) or CUDA (GPU)
@@ -516,7 +520,7 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
     ##################
     if rank == 0:
         tsimstart = perf_counter()
-        print('MPI master (rank {}, PID {}) on {} using {} workers\n'.format(rank, os.getpid(), hostname, numworkers))
+        print('MPI master ({}, rank {}) on {} using {} workers\n'.format(comm.name, rank, hostname, numworkers))
 
         closedworkers = 0
         while closedworkers < numworkers:
@@ -539,9 +543,6 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
             # Worker has completed all tasks
             elif tag == tags.EXIT.value:
                 closedworkers += 1
-
-        # Shutdown communicator
-        comm.Disconnect()
 
         tsimend = perf_counter()
         simcompletestr = '\n=== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsimend - tsimstart))
